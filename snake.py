@@ -15,7 +15,7 @@ block_size = 10
 FPS = 10
 
 class Snake:
-    def __init__(self,w=40,h=40):
+    def __init__(self,w=20,h=20,autoplay=True):
         self.w = w
         self.h = h
         self.body = []
@@ -25,6 +25,8 @@ class Snake:
         self.render_init()
         self.create_snake()     
         self.generate_food()
+        self.autoplay = autoplay
+        self.dir = 1
 
     def create_snake(self):
         self.body.insert(0,[int(self.w/2), int(self.h/2)])
@@ -60,19 +62,28 @@ class Snake:
         quit()
 
     def get_input(self):
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                        return 0;
-                elif event.key == pygame.K_RIGHT:
-                        return 1;
-                if event.key == pygame.K_UP:
-                        return 2;
-                elif event.key == pygame.K_DOWN:
-                        return 3;
+        if self.autoplay:
+            dir = randint(0,3)
+            while (self.dir == 0 and dir == 1) or (self.dir == 1 and dir == 0) or (self.dir == 2 and dir == 3) or (self.dir == 3 and dir == 2):
+                dir = randint(0,3)
+            self.dir = dir
+            return(dir)
+        else:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
+                            return 0;
+                    elif event.key == pygame.K_RIGHT:
+                            return 1;
+                    if event.key == pygame.K_UP:
+                            return 2;
+                    elif event.key == pygame.K_DOWN:
+                            return 3;
     def render(self):
         self.gameDisplay.fill(white)
         pygame.draw.rect(self.gameDisplay, red, [self.food[0]*block_size, self.food[1]*block_size,block_size,block_size])
@@ -81,7 +92,6 @@ class Snake:
         pygame.display.update()
         
     def update(self,dir):
-
         if dir == 0:
                 self.setDir(-1, 0);
         elif dir == 1:
@@ -97,6 +107,7 @@ class Snake:
         head[0] += self.xdir
         head[1] +=self.ydir
         self.body.append(head)
+        
 
     def endGame(self):
         x = self.body[-1][0]
