@@ -6,6 +6,7 @@ Created on Mon Dec 24 15:30:49 2018
 """
 import pygame
 from random import randint
+import numpy as np
 
 white = (255,255,255)
 black = (0,0,0)
@@ -27,6 +28,7 @@ class Snake:
         self.generate_food()
         self.autoplay = autoplay
         self.dir = 1
+        self.train_data = []
 
     def create_snake(self):
         self.body.insert(0,[int(self.w/2), int(self.h/2)])
@@ -51,18 +53,27 @@ class Snake:
             if food in self.body: food = []
         self.food = food
 
+    def update_input_condition_to_train(self,dir):
+        head = self.body[-1]
+        ret = [head[0]/self.w,(self.w - head[0])/self.w, head[1]/self.h, (self.h - head[1])/self.h, dir, self.len, False]
+        self.train_data.append(ret)
+        
     def play_game(self):
         while not self.endGame():
-            self.update(self.get_input())
+            dir = self.get_input()
+            self.update_input_condition_to_train(dir)
+            self.update(dir)
+            
             self.render()
             game.clock.tick(FPS)
         print(self.body)
-        print("game end Score:" + str(self.len)) 
+        print("game end Score:" + str(self.len))
+        self.train_data[-1][-1] = True
+        print(np.matrix(self.train_data))
         pygame.quit()
         quit()
 
-    def get_input(self):
-        
+    def get_input(self):    
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
