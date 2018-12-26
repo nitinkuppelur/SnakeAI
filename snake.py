@@ -13,22 +13,26 @@ black = (0,0,0)
 red = (255,0,0)
 blue = (0,0,255)
 block_size = 10
-FPS = 10
+FPS = 5
 
 class Snake:
-    def __init__(self,w=20,h=20,autoplay=True):
+    def __init__(self,w=20,h=20,autoplay=True,gui=True,brain=None):
         self.w = w
         self.h = h
         self.body = []
         self.xdir =1
         self.ydir = 0
         self.len =0
-        self.render_init()
+        self.gui = gui
+        if gui==True:self.render_init()
         self.create_snake()     
         self.generate_food()
         self.autoplay = autoplay
         self.dir = 1
         self.train_data = []
+        self.brain = brain
+        if brain is not None:
+            print("Brain provided")
 
     def create_snake(self):
         self.body.insert(0,[int(self.w/2), int(self.h/2)])
@@ -55,7 +59,8 @@ class Snake:
 
     def update_input_condition_to_train(self,dir):
         head = self.body[-1]
-        ret = [head[0]/self.w,(self.w - head[0])/self.w, head[1]/self.h, (self.h - head[1])/self.h, dir, self.len, False]
+        #[dist from left wall, dist from right wall, dist from top wall, dist from bottom wall, current direction][score=+1/gameEnd=-1/else=0]
+        ret = [[head[0]/self.w,(self.w - head[0])/self.w, head[1]/self.h, (self.h - head[1])/self.h,dir],0]
         self.train_data.append(ret)
         
     def play_game(self):
@@ -63,38 +68,61 @@ class Snake:
             dir = self.get_input()
             self.update_input_condition_to_train(dir)
             self.update(dir)
-            
-            self.render()
-            game.clock.tick(FPS)
-        print(self.body)
-        print("game end Score:" + str(self.len))
-        self.train_data[-1][-1] = True
-        print(np.matrix(self.train_data))
-        pygame.quit()
-        quit()
-
-    def get_input(self):    
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
-        if self.autoplay:
-            dir = randint(0,3)
-            while (self.dir == 0 and dir == 1) or (self.dir == 1 and dir == 0) or (self.dir == 2 and dir == 3) or (self.dir == 3 and dir == 2):
-                dir = randint(0,3)
-            self.dir = dir
-            return(dir)
-        else:
+            if self.gui:
+                self.render()
+                self.clock.tick(FPS)
+        #print(self.body)
+        print("game end Score:" + str(self.len)+"\r")
+        #print(self.train_data[-1][1])
+        self.train_data[-1][1] = -1
+        return self.train_data
+        if self.gui: pygame.quit()
+        
+    def get_input(self):
+        
+        if self.gui:
             for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_LEFT:
-                            return 0;
-                    elif event.key == pygame.K_RIGHT:
-                            return 1;
-                    if event.key == pygame.K_UP:
-                            return 2;
-                    elif event.key == pygame.K_DOWN:
-                            return 3;
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    quit()
+                if event.type == pygame.KEYDOWN and not self.autoplay:
+                        if event.key == pygame.K_LEFT:
+                                return 0
+                        elif event.key == pygame.K_RIGHT:
+                                return 1
+                        if event.key == pygame.K_UP:
+                                return 2
+                        elif event.key == pygame.K_DOWN:
+                                return 3
+        if self.autoplay:
+            if self.brain is not None:
+                head = self.body[-1]
+                y = []
+                for dir in range(0,4):
+                    temp = 0
+                    if (self.dir == 0 and dir == 1) or (self.dir == 1 and dir == 0) or (self.dir == 2 and dir == 3) or (self.dir == 3 and dir == 2):
+                        temp = -10
+                    else:
+                        X = np.array([head[0]/self.w,(self.w - head[0])/self.w, head[1]/self.h, (self.h - head[1])/self.h,dir]).reshape(-1,5,1)
+                        temp = self.brain.predict(X)
+                    #print("self.dir:" + str(self.dir) + "dir:"+str(dir)+"temp:"+str(temp))
+                    y.append(temp)
+                #print(y)
+                dir = np.argmax(np.array(y))
+                #print(dir)
+            else:
+                dir = randint(0,3)
+                while (self.dir == 0 and dir == 1) or (self.dir == 1 and dir == 0) or (self.dir == 2 and dir == 3) or (self.dir == 3 and dir == 2):
+                    if self.brain is not None:
+                        head = self.body[-1]
+                        X = np.array([head[0]/self.w,(self.w - head[0])/self.w, head[1]/self.h, (self.h - head[1])/self.h,self.len, False]).reshape(-1,6,1)
+                        dir = int(self.brain.predict(X)[0][0])
+                    else:
+                        dir = randint(0,3)
+            self.dir = dir
+        return(dir)
+
+
     def render(self):
         self.gameDisplay.fill(white)
         pygame.draw.rect(self.gameDisplay, red, [self.food[0]*block_size, self.food[1]*block_size,block_size,block_size])
@@ -131,12 +159,13 @@ class Snake:
     def eat(self):
         if self.body[-1] == self.food:
             self.generate_food()
+            self.train_data[-1][1] = 1
             return True
         else:
             return False
-    
+
 
 if __name__ == "__main__":
-    game = Snake()
-    game.play_game()
+    game = Snake(autoplay=True,gui=False)
+    print(game.play_game())
         
